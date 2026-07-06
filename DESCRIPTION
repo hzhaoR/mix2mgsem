@@ -1,0 +1,23 @@
+Package: mix2mgsem
+Type: Package
+Title: Two-Step Double-Mixture Multigroup Structural Equation Modeling
+Version: 0.1.0
+Authors@R: c(
+    person(
+      given = "Hongwei",
+      family = "Zhao",
+      email = "hongwei.zhao@kuleuven.be",
+      role = c("aut", "cre")
+    )
+  )
+Description: Implements a two-step double-mixture multigroup structural
+    equation modeling workflow. The first step clusters groups based on
+    measurement-model parameters using mixture multigroup factor analysis.
+    The second step clusters groups based on structural relations using
+    group-specific factor covariance matrices from the first step as input.
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+Imports:
+    lavaan,
+    mixmgfa
