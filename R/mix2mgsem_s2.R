@@ -27,8 +27,7 @@ EStep <- function(pi_ks, ngroup, nclus, loglik){
     max_g[g] <- max(z_gks[g,])
     z_gks[g,] <- exp(z_gks[g,]-rep(max_g[g],nclus))
   }
-  z_gks <- diag(1/apply(z_gks,1,sum))%*%z_gks
-
+  z_gks <- sweep(z_gks, 1, rowSums(z_gks), FUN = "/")
   return(z_gks)
 }
 
