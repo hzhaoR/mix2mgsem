@@ -1,5 +1,9 @@
 # mix2mgsem: Double-Mixture Multigroup SEM
 
+<!-- badges: start -->
+  [![R-CMD-check](https://github.com/hzhaoR/mix2mgsem/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/hzhaoR/mix2mgsem/actions/workflows/R-CMD-check.yaml)
+  <!-- badges: end -->
+  
 `mix2mgsem` is an R package for two-step double-mixture multigroup structural equation modeling.
 
 The method is designed for comparing structural relations across many groups while accounting for measurement-model heterogeneity. It combines measurement-model clustering and structural-relation clustering in a two-step workflow. For a detailed description of the method, see: [MixMG-SEM with double mixture modeling](https://www.sciencedirect.com/science/article/pii/S2590260126000214).
