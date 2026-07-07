@@ -1,5 +1,5 @@
 #' Run Step 1: measurement model clustering
-#'
+
 #' Fit the first step of the double-mixture multigroup SEM method.
 #' In the first step, groups are clustered based on (a subset of) measurement model
 #' parameters using mixture multigroup factor analysis via `mixmgfa`.
@@ -92,7 +92,7 @@ MixMix_Step1 <- function(data, step1model, group = "group", MM.cluster.spec = c(
   ngroups <- length(N_gs)
 
   # sample covariance matrix per group
-  S_unbiased <- lapply(X = unique(centered[, group]), FUN = function(x) {cov(centered[centered[, group] == x, vars])})
+  S_unbiased <- lapply(X = unique(centered[, group]), FUN = function(x) {stats::cov(centered[centered[, group] == x, vars])})
 
   set.seed(seed)
   # MixMG-CFA: loadings cluster-specific, 1-6 clusters;
@@ -101,7 +101,7 @@ MixMix_Step1 <- function(data, step1model, group = "group", MM.cluster.spec = c(
                     maxiter = MM.maxiter, nruns = MM.nruns, design = MM.design, invar_loadings = invar_loadings)
 
   # MixMG-CFA: rescaling factors using marker variables
-  output2 <- mixmgfa::ScaleRotateMixmgfa_pinvar(output1, N_gs = N_gs,
+  output2 <- scale_rotate_mixmgfa_pinvar(output1, N_gs = N_gs,
                                 nsclust = MM.nclus, design = MM.design, rescale=1, markers = markers,
                                 rotation=0,targetT=0,targetW=0)
 

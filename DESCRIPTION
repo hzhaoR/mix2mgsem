@@ -17,10 +17,10 @@ Description: Implements a two-step double-mixture multigroup structural
     group-specific factor covariance matrices from the first step as input.
 License: MIT + file LICENSE
 Encoding: UTF-8
-LazyData: true
 Imports:
     lavaan,
-    mixmgfa
+    mixmgfa,
+    GPArotation
 Suggests:
     testthat (>= 3.0.0)
 Remotes:

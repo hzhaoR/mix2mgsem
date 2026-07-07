@@ -2,7 +2,12 @@
 % Please edit documentation in R/mix2mgsem_s1.R
 \name{MixMix_Step1}
 \alias{MixMix_Step1}
-\title{Run Step 1: measurement model clustering}
+\title{Run Step 1: measurement model clustering
+Fit the first step of the double-mixture multigroup SEM method.
+In the first step, groups are clustered based on (a subset of) measurement model
+parameters using mixture multigroup factor analysis via \code{mixmgfa}.
+The relevant parameters are extracted to obtain group-specific latent factor covariance matrices
+that can be passed to \code{\link[=MixMix_Step2]{MixMix_Step2()}} for the second step structural relations clustering.}
 \usage{
 MixMix_Step1(
   data,
@@ -55,6 +60,7 @@ A named list containing:
 }
 }
 \description{
+Run Step 1: measurement model clustering
 Fit the first step of the double-mixture multigroup SEM method.
 In the first step, groups are clustered based on (a subset of) measurement model
 parameters using mixture multigroup factor analysis via \code{mixmgfa}.

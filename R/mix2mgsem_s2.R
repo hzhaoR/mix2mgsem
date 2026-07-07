@@ -250,7 +250,7 @@ MixMix_Step2 <- function(s1out,  step2model, nclus, nfree,
           cl <- min(colSums(z_gks))
         }
       } else if (partition == "soft") {
-        z_gks <- matrix(data = runif(n = c(nclus*ngroups)), ncol = nclus, nrow = ngroups)
+        z_gks <- matrix(data = stats::runif(n = c(nclus*ngroups)), ncol = nclus, nrow = ngroups)
         z_gks <- z_gks/rowSums(z_gks)
       }
 
@@ -501,7 +501,7 @@ MixMix_Step2 <- function(s1out,  step2model, nclus, nfree,
               Sigma[[g, k]] <- 0.5 * (Sigma[[g, k]] + t(Sigma[[g, k]])) # Force to be symmetric
 
               # Estimate the loglikelihood
-              loglik_gk <- lavaan:::lav_mvnorm_loglik_samplestats(
+              loglik_gk <- lav_samplestats_loglik(
                 sample.mean = rep(0, nrow(cov_eta[[1]])),
                 sample.nobs = N_gs[g], # Use original sample size to get the correct loglikelihood
                 # sample.nobs = N_gks[g, k],
@@ -515,7 +515,7 @@ MixMix_Step2 <- function(s1out,  step2model, nclus, nfree,
               #   Sigma[[g, k]] <- lambda_gs[[g]] %*% solve(I - beta) %*% psi %*% t(solve(I - beta)) %*% t(lambda_gs[[g]]) + theta_gs[[g]]
               #   Sigma[[g, k]] <- 0.5 * (Sigma[[g, k]] + t(Sigma[[g, k]]))
               #   # Sigma[[g, k]][lower.tri(Sigma[[g, k]])] <- t(Sigma[[g, k]])[lower.tri(Sigma[[g, k]])]
-              #   loglik_gk <- lavaan:::lav_mvnorm_loglik_samplestats(
+              #   loglik_gk <- lav_samplestats_loglik(
               #     sample.mean = rep(0, length(vars)),
               #     sample.nobs = N_gs[g], # Use original sample size to get the correct loglikelihood
               #     # sample.nobs = N_gks[g, k],
@@ -684,7 +684,7 @@ MixMix_Step2 <- function(s1out,  step2model, nclus, nfree,
         Sigma_ghk[[g, h, k]] <- lambda_g_h %*% var_eta %*% t(lambda_g_h) + psi_g_h
 
         # compute loglik for this combination
-        Obs.loglik_ghk[g, h, k] <- lavaan:::lav_mvnorm_loglik_samplestats(
+        Obs.loglik_ghk[g, h, k] <- lav_samplestats_loglik(
           sample.mean = rep(0, length(vars)),
           sample.nobs  = N_gs[g],
           sample.cov  = S_biased,
