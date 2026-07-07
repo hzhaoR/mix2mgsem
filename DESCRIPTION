@@ -21,3 +21,12 @@ LazyData: true
 Imports:
     lavaan,
     mixmgfa
+Suggests:
+    testthat (>= 3.0.0)
+Remotes:
+    KimDeRoover/mixmgfa
+Config/testthat/edition: 3
+URL: https://github.com/hzhaoR/mix2mgsem
+BugReports: https://github.com/hzhaoR/mix2mgsem/issues
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
