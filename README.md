@@ -104,7 +104,7 @@ devtools::install_github("hzhaoR/mix2mgsem")
 
 Parts of the Step 2 implementation are adapted from the `mmgsem` package developed by Andres Felipe Perez Alonso and extended for the double-mixture multigroup SEM implemented in `mix2mgsem`.
 
-The Step 1 scaling/rotation helper is adapted from updated \`mixmgfa\` code provided by Kim De Roover and included internally to support the current two-step workflow.
+The Step 1 scaling/rotation helper is adapted from updated `mixmgfa` code provided by Kim De Roover and included internally to support the current two-step workflow.
 
 ## Funding
 
