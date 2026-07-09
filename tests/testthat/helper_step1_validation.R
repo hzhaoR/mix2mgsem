@@ -1,26 +1,5 @@
 # Step 1 validation
 
-# label switch: check all permutations
-# all_permutations <- function(x) {
-#   if (length(x) == 1L) {
-#     return(list(x))
-#   }
-#
-#   out <- list()
-#
-#   for (i in seq_along(x)) {
-#     rest <- x[-i]
-#     rest_perm <- all_permutations(rest)
-#
-#     out <- c(
-#       out,
-#       lapply(rest_perm, function(p) c(x[i], p))
-#     )
-#   }
-#
-#   out
-# }
-
 # factor loadings
 get_loading_paths <- function(step1model,
                               markers = NULL,
