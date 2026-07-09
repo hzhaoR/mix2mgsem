@@ -9,7 +9,6 @@ test_that("Step 1 validation recovers MM-clusters and factor loadings", {
     "truth_step1_19346.rds"
   ))
   data <- as.data.frame(dat$SimData)
-  # data <- data[,c(21,1:20)]
 
   s1out <- MixMix_Step1(
     data = data,

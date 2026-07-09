@@ -56,7 +56,7 @@
 
 MixMix_Step1 <- function(data, step1model, group = "group", MM.cluster.spec = c("loadings"),
                          MM.nclus, MM.maxiter = 10000, MM.nruns = 50,
-                         MM.design, invar_loadings, markers, seed = 100){
+                         MM.design, invar_loadings = NULL, markers, seed = 100){
 
   start_time_step1 <- Sys.time()
 
@@ -96,12 +96,36 @@ MixMix_Step1 <- function(data, step1model, group = "group", MM.cluster.spec = c(
 
   set.seed(seed)
   # MixMG-CFA: loadings cluster-specific, 1-6 clusters;
-  output1 <- mixmgfa::mixmgfa(data = centered, N_gs = N_gs, nfactors = nfactors,
-                    cluster.spec = MM.cluster.spec, nsclust = MM.nclus,
-                    maxiter = MM.maxiter, nruns = MM.nruns, design = MM.design, invar_loadings = invar_loadings)
+  mixmgfa_args <- list(
+    data = centered,
+    N_gs = N_gs,
+    nfactors = nfactors,
+    cluster.spec = MM.cluster.spec,
+    nsclust = MM.nclus,
+    maxiter = MM.maxiter,
+    nruns = MM.nruns,
+    design = MM.design
+  )
+
+  if (!is.null(invar_loadings)) {
+    if (!"invar_loadings" %in% names(formals(mixmgfa::mixmgfa))) {
+      stop(
+        "`invar_loadings` was supplied, but the installed version of ",
+        "`mixmgfa::mixmgfa()` does not support this argument. ",
+        "Use `invar_loadings = NULL` with the public version of `mixmgfa`, ",
+        "or install a development version of `mixmgfa` that supports ",
+        "`invar_loadings`.",
+        call. = FALSE
+      )
+    }
+
+    mixmgfa_args$invar_loadings <- invar_loadings
+  }
+
+  output1 <- do.call(mixmgfa::mixmgfa, mixmgfa_args)
 
   # MixMG-CFA: rescaling factors using marker variables
-  output2 <- scale_rotate_mixmgfa_pinvar(output1, N_gs = N_gs,
+  output2 <- .scale_rotate_mixmgfa(output1, N_gs = N_gs, cluster.spec = MM.cluster.spec,
                                 nsclust = MM.nclus, design = MM.design, rescale=1, markers = markers,
                                 rotation=0,targetT=0,targetW=0)
 

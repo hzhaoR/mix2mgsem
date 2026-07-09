@@ -18,7 +18,7 @@ MixMix_Step1(
   MM.maxiter = 10000,
   MM.nruns = 50,
   MM.design,
-  invar_loadings,
+  invar_loadings = NULL,
   markers,
   seed = 100
 )
