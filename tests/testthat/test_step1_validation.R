@@ -17,7 +17,7 @@ test_that("Step 1 validation recovers MM-clusters and factor loadings", {
     MM.cluster.spec = c("loadings"),
     MM.nclus = length(unique(truth$true_cluster)),
     MM.design = truth$true_design,
-    invar_loadings = rep(c(1,0,0,1,1), 4),
+    invar_loadings = NULL,
     markers = truth$markers
   )
 
