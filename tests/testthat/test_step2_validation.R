@@ -1,4 +1,4 @@
-test_that("MixMix_Step2 recovers structural relations clusters and betas", {
+test_that("MixMix_Step2 recovers SR-clusters and betas", {
   s1out <- readRDS(testthat::test_path(
     "fixtures",
     "s1output19346.rds"
