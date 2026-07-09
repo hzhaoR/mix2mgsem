@@ -9,22 +9,22 @@ test_that("Step 1 validation recovers MM-clusters and factor loadings", {
     "truth_step1_19346.rds"
   ))
   data <- as.data.frame(dat$SimData)
-  data <- data[,c(21,1:20)]
+  # data <- data[,c(21,1:20)]
 
-  # s1out <- MixMix_Step1(
-  #   data = data,
-  #   step1model = truth$step1model,
-  #   MM.cluster.spec = c("loadings"),
-  #   MM.nclus = length(unique(truth$true_cluster)),
-  #   MM.design = truth$true_design,
-  #   invar_loadings = rep(c(1,0,0,1,1), 4),
-  #   markers = truth$markers
-  # )
+  s1out <- MixMix_Step1(
+    data = data,
+    step1model = truth$step1model,
+    MM.cluster.spec = c("loadings"),
+    MM.nclus = length(unique(truth$true_cluster)),
+    MM.design = truth$true_design,
+    invar_loadings = rep(c(1,0,0,1,1), 4),
+    markers = truth$markers
+  )
 
-  s1out <- readRDS(testthat::test_path(
-    "fixtures",
-    "s1output19346.rds"
-  ))
+  # s1out <- readRDS(testthat::test_path(
+  #   "fixtures",
+  #   "s1output19346.rds"
+  # ))
 
   step1_eval <- evaluate_step1_validation(
     posteriors = s1out$mmgfa_output$cluster_memb,
