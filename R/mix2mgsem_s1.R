@@ -125,7 +125,7 @@ MixMix_Step1 <- function(data, step1model, group = "group", MM.cluster.spec = c(
   output1 <- do.call(mixmgfa::mixmgfa, mixmgfa_args)
 
   # MixMG-CFA: rescaling factors using marker variables
-  output2 <- mixmgfa::ScaleRotateMixmgfa(output1, N_gs = N_gs, cluster.spec = MM.cluster.spec,
+  output2 <- .scale_rotate_mixmgfa(output1, N_gs = N_gs, cluster.spec = MM.cluster.spec,
                                 nsclust = MM.nclus, design = MM.design, rescale=1, markers = markers,
                                 rotation=0,targetT=0,targetW=0)
 
