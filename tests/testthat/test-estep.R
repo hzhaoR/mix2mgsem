@@ -1,5 +1,3 @@
-library(testthat)
-
 test_that("EStep returns valid posterior probabilities", {
   loglik <- matrix(
     c(
