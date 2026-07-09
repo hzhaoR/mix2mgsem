@@ -19,8 +19,7 @@ License: MIT + file LICENSE
 Encoding: UTF-8
 Imports:
     lavaan,
-    mixmgfa,
-    GPArotation
+    mixmgfa
 Suggests:
     testthat (>= 3.0.0)
 Remotes:
