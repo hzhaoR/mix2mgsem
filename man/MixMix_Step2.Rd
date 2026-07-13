@@ -90,7 +90,7 @@ step2_out <- MixMix_Step2(
   step2model = step2_model,
   nclus = 2,
   nfree = 4,
-  seed = 123
+  seed = 100
 )
 }
 }
