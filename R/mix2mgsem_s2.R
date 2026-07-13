@@ -41,7 +41,7 @@ EStep <- function(pi_ks, ngroup, nclus, loglik){
 #' @param s1out Output from [MixMix_Step1()].
 #' @param step2model A lavaan model syntax string specifying the structural relations among latent variables.
 #' @param nclus Integer scalar indicating the number of structural relations clusters.
-#'@param nfree Integer scalar indicating the number of free non-marker loadings in the Step 1 measurement model.
+#' @param nfree Integer scalar indicating the number of free non-marker loadings in the Step 1 measurement model.
 #'   Used for observed-data information-criterion calculations.
 #' @param seed Optional integer seed for random starts.
 #' @param userStart Optional user-defined cluster membership matrix (dimensions: number of groups × number of clusters) with binary values
@@ -89,7 +89,7 @@ EStep <- function(pi_ks, ngroup, nclus, loglik){
 #'   step2model = step2_model,
 #'   nclus = 2,
 #'   nfree = 4,
-#'   seed = 123
+#'   seed = 100
 #' )
 #' }
 
@@ -148,7 +148,7 @@ MixMix_Step2 <- function(s1out,  step2model, nclus, nfree,
   # initialize objects
   results_nstarts <- vector(mode = "list", length = nstarts)
   z_gks_nstarts <- vector(mode = "list", length = nstarts)
-  loglik_nstarts <- numeric(nstarts)
+  loglik_nstarts <- rep(-Inf, nstarts) #instead of 0
 
   if (!is.null(seed)) {
     set.seed(seed)
@@ -564,6 +564,21 @@ MixMix_Step2 <- function(s1out,  step2model, nclus, nfree,
       cat("Error in nstarts", s, ":", e$message, "\n")
     })
   }
+
+  valid_starts <- vapply(seq_len(nstarts), function(s) {
+    is.finite(loglik_nstarts[s]) &&
+      !is.null(results_nstarts[[s]]) &&
+      !is.null(z_gks_nstarts[[s]])
+  }, logical(1))
+
+  if (!any(valid_starts)) {
+    stop(
+      "All random starts failed for `nclus` = ", nclus, ".",
+      call. = FALSE
+    )
+  }
+
+  loglik_nstarts[!valid_starts] <- -Inf
 
   # Get best fit and z_gks based on the loglikelihood
   best_idx <- which.max(loglik_nstarts)
