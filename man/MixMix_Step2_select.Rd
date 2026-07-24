@@ -12,6 +12,8 @@ MixMix_Step2_select(s1out, step2model, nclus, ...)
 \item{step2model}{A lavaan model syntax string specifying the structural relations among latent variables.}
 
 \item{nclus}{Integer vector containing at least two candidate numbers of SR-clusters.}
+
+\item{...}{Additional arguments passed to \code{\link[=MixMix_Step2]{MixMix_Step2()}}.}
 }
 \value{
 An object of class \code{mix2mgsem_step2_selection} containing:
