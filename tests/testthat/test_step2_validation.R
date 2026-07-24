@@ -1,4 +1,4 @@
-test_that("MixMix_Step2 recovers SR-clusters and betas", {
+test_that("Step2 recovers SR-clusters and betas", {
   s1out <- readRDS(testthat::test_path(
     "fixtures",
     "s1output19346.rds"
@@ -15,7 +15,7 @@ test_that("MixMix_Step2 recovers SR-clusters and betas", {
     nclus = truth$nclus,
     nfree = truth$nfree,
     seed = 100,
-    printing = F
+    printing = FALSE
   )
 
   step2_eval <- evaluate_step2_validation(
@@ -23,13 +23,10 @@ test_that("MixMix_Step2 recovers SR-clusters and betas", {
     beta_ks = s2out$param$beta_ks,
     true_cluster = truth$true_cluster,
     true_beta = truth$true_beta,
-    step2model = truth$step2model,
-    nclus = truth$nclus
+    step2model = truth$step2model
   )
 
   expect_equal(step2_eval$clustering$misclassification_error, 0)
-  expect_true(step2_eval$clustering$correct_clustering)
-
   expect_lt(step2_eval$clustering$mean_uncertainty, 0.01)
 
   expect_lt(step2_eval$beta$rmse, 0.05)

@@ -1,4 +1,4 @@
-test_that("Step 1 validation recovers MM-clusters and factor loadings", {
+test_that("Step 1 recovers MM-clusters and factor loadings", {
   dat <- readRDS(testthat::test_path(
     "fixtures",
     "data19346.rds"
@@ -8,15 +8,15 @@ test_that("Step 1 validation recovers MM-clusters and factor loadings", {
     "fixtures",
     "truth_step1_19346.rds"
   ))
+
   data <- as.data.frame(dat$SimData)
 
   s1out <- MixMix_Step1(
     data = data,
     step1model = truth$step1model,
-    MM.cluster.spec = c("loadings"),
+    MM.cluster.spec = "loadings",
     MM.nclus = length(unique(truth$true_cluster)),
     MM.design = truth$true_design,
-    invar_loadings = NULL,
     markers = truth$markers
   )
 
@@ -27,7 +27,7 @@ test_that("Step 1 validation recovers MM-clusters and factor loadings", {
 
   step1_eval <- evaluate_step1_validation(
     posteriors = s1out$mmgfa_output$cluster_memb,
-    lambda_ks = s1out$mmgfa_output$lambda_gs,
+    lambda_ks = s1out$mmgfa_output$lambda,
     cov_eta = s1out$cov_eta,
 
     true_cluster = truth$true_cluster,
@@ -35,14 +35,12 @@ test_that("Step 1 validation recovers MM-clusters and factor loadings", {
     true_cov_eta = truth$true_cov_eta,
 
     step1model = truth$step1model,
-    observed_vars = s1out$vars,
-    latent_vars = s1out$lat_var,
-    markers = truth$markers,
-    include_marker_loadings = FALSE
+    obs_vars = s1out$vars,
+    lat_vars = s1out$lat_var,
+    markers = truth$markers
   )
 
   expect_equal(step1_eval$clustering$misclassification_error, 0)
-  expect_true(step1_eval$clustering$correct_clustering)
   expect_lt(step1_eval$clustering$mean_uncertainty, 0.01)
 
   expect_lt(step1_eval$loading$rmse, 0.05)

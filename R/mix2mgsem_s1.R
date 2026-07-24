@@ -1,21 +1,25 @@
 #' Run Step 1: measurement model clustering
-
-#' Fit the first step of the double-mixture multigroup SEM method.
-#' In the first step, groups are clustered based on (a subset of) measurement model
-#' parameters using mixture multigroup factor analysis via `mixmgfa`.
-#' The relevant parameters are extracted to obtain group-specific latent factor covariance matrices
-#' that can be passed to [MixMix_Step2()] for the second step structural relations clustering.
 #'
-#' @param data A data frame containing the observed item variables and a group identifier.
+#' Fit the first step of the double-mixture multigroup SEM (2MixMG-SEM) method.
+#' In this step, groups are clustered based on (a subset of) measurement model
+#' parameters using mixture multigroup confirmatory factor analysis via `mixmgfa`.
+#' The resulting group- and cluster-specific factor covariance matrices are weighted
+#' by the posterior cluster membership probabilities to obtain one factor covariance matrix
+#' for each group. These matrices are used as input to [MixMix_Step2()].
+#'
+#' @param data A data frame containing the observed variables and a grouping variable.
+#' @param group A character string giving the name of the grouping variable. Defaults to `"group"`.
 #' @param step1model A lavaan model syntax string specifying the measurement model.
-#' @param group Character string giving the name of the grouping variable in `data`. Defaults to `"group"`.
-#' @param MM.cluster.spec Character vector passed to `mixmgfa::mixmgfa()`; specifies which measurement parameters are cluster-specific.
-#' @param MM.nclus Integer scalar indicating the number of measurement clusters.
-#' @param MM.maxiter Maximum number of iterations passed to `mixmgfa::mixmgfa()`.
-#' @param MM.nruns Number of random starts passed to `mixmgfa::mixmgfa()`.
-#' @param MM.design Design object passed to `mixmgfa::mixmgfa()`. Loading matrix (with ncol = nfactors) indicating position of zero loadings with '0' and non-zero loadings with '1'.
-#' @param invar_loadings Invariant loadings specification passed to `mixmgfa::mixmgfa()`.
-#' @param markers Marker variables specification passed to `mixmgfa::ScaleRotateMixmgfa_pinvar()`.
+#' @param MM.cluster.spec A character vector passed to `mixmgfa::mixmgfa()` specifying which measurement parameters are cluster-specific.
+#'        Defaults to `"loadings"`. Use `c("loadings", "residuals")` to also make the unique variances cluster-specific.
+#' @param MM.nclus Integer scalar indicating the number of measurement model clusters.
+#' @param MM.maxiter Maximum number of iterations passed to `mixmgfa::mixmgfa()`. Increase in case of non-convergence.
+#' @param MM.nruns Number of random starts passed to `mixmgfa::mixmgfa()` (to avoid local maxima).
+#' @param MM.design A zero-one loading matrix passed to `mixmgfa::mixmgfa()`. Rows correspond to observed variables and columns to factors;
+#'        `0` indicates a zero loading and `1` indicates a non-zero loading.
+#' @param invar_loadings Optional invariant loading specification passed to `mixmgfa::mixmgfa()`. Defaults to `NULL`.
+#' @param markers A zero-one matrix specifying the marker variable for each factor. Rows correspond to observed variables and columns to
+#'        factors. An entry of `1` identifies the marker variable; all other entries should be `0`.
 #' @param seed Integer seed used before fitting the measurement model.
 #'
 #' @return A named list containing:
@@ -27,7 +31,7 @@
 #'   \item{vars}{Observed variable names.}
 #'   \item{lat_var}{Latent variable names.}
 #'   \item{mmgfa_output}{Selected outputs from the Step 1 `mixmgfa` fit.}
-#'   \item{step1_time}{Elapsed Step 1 computation time in minutes.}
+#'   \item{step1_time}{Step 1 computation time in minutes.}
 #' }
 #'
 #' @export
@@ -42,21 +46,21 @@
 #' '
 #'
 #' step1_out <- MixMix_Step1(
-#'   data = dat,
-#'   step1model = step1_model,
+#'   data = data,
 #'   group = "country",
-#'   MM.cluster.spec=c("loadings"),
+#'   step1model = step1_model,
+#'   MM.cluster.spec = c("loadings"),
 #'   MM.nclus = 2,
 #'   MM.design = design,
-#'   invar_loadings = invar_loadings,
+#'   invar_loadings = NULL,
 #'   markers = markers
 #' )
 #' }
 
 
-MixMix_Step1 <- function(data, step1model, group = "group", MM.cluster.spec = c("loadings"),
+MixMix_Step1 <- function(data, group = "group", step1model, MM.cluster.spec = c("loadings"),
                          MM.nclus, MM.maxiter = 10000, MM.nruns = 50,
-                         MM.design, invar_loadings = NULL, markers, seed = 100){
+                         MM.design, invar_loadings = NULL, markers, seed = 100) {
 
   start_time_step1 <- Sys.time()
 
@@ -64,105 +68,101 @@ MixMix_Step1 <- function(data, step1model, group = "group", MM.cluster.spec = c(
     stop("`data` must be a data frame.", call. = FALSE)
   }
 
-  if (!is.character(group) || length(group) != 1L || !group %in% names(data)) {
-    stop("`group` must be a single column name in `data`.", call. = FALSE)
-  }
-
   if (length(MM.nclus) != 1L) {
     stop(
-      "This development version expects `MM.nclus` to be a single selected number of measurement model clusters.",
+      "This development version expects `MM.nclus` to be a single number of measurement model clusters.",
       call. = FALSE
     )
   }
-  # centered data
-  g_name <- as.character(unique(data[, group]))
-  vars <- lavaan::lavNames(lavaan::lavaanify(step1model, auto = TRUE)) #observed var
-  lat_var <- lavaan::lavNames(lavaan::lavaanify(step1model, auto = TRUE), "lv") #latent var
+
+  # center observed variables within groups
+  g_name <- unique(data[[group]])
+  partable <- lavaan::lavaanify(step1model, auto = TRUE)
+  vars <- lavaan::lavNames(partable) #obs var
+  lat_var <- lavaan::lavNames(partable, type = "lv") #latent var
 
   centered <- data
-  group.idx <- match(data[,group], g_name)
+  group.idx <- match(data[[group]], g_name)
   group.sizes <- tabulate(group.idx)
-  group.means <- rowsum.default(as.matrix(data[,vars]),
+  group.means <- rowsum.default(as.matrix(data[, vars, drop = FALSE]),
                                 group = group.idx, reorder = FALSE,
                                 na.rm = FALSE)/group.sizes
-  centered[,vars] <- data[,vars] - group.means[group.idx, ,drop = FALSE]
+  centered[, vars] <- data[, vars, drop = FALSE] - group.means[group.idx, , drop = FALSE]
 
   N_gs <- group.sizes
   nfactors <- length(lat_var)
   ngroups <- length(N_gs)
 
-  # sample covariance matrix per group
-  S_unbiased <- lapply(X = unique(centered[, group]), FUN = function(x) {stats::cov(centered[centered[, group] == x, vars])})
+  # mixmgfa expects the grouping variable in the first column
+  centered <- centered[, c(group, vars), drop = FALSE]
+  centered[[group]] <- group.idx
+
+  # compute the sample covariance matrix per group
+  S_unbiased <- lapply(unique(centered[[group]]),
+                       function(x) {stats::cov(centered[centered[[group]] == x, vars, drop = FALSE])})
 
   set.seed(seed)
-  # MixMG-CFA: loadings cluster-specific, 1-6 clusters;
+  # fit the MixMG-CFA model
   mixmgfa_args <- list(
-    data = centered,
-    N_gs = N_gs,
-    nfactors = nfactors,
-    cluster.spec = MM.cluster.spec,
-    nsclust = MM.nclus,
-    maxiter = MM.maxiter,
-    nruns = MM.nruns,
-    design = MM.design
+    data = centered, N_gs = N_gs, nfactors = nfactors,
+    cluster.spec = MM.cluster.spec, nsclust = MM.nclus,
+    maxiter = MM.maxiter, nruns = MM.nruns, design = MM.design
   )
 
   if (!is.null(invar_loadings)) {
     if (!"invar_loadings" %in% names(formals(mixmgfa::mixmgfa))) {
       stop(
-        "`invar_loadings` was supplied, but the installed version of ",
-        "`mixmgfa::mixmgfa()` does not support this argument. ",
-        "Use `invar_loadings = NULL` with the public version of `mixmgfa`, ",
-        "or install a development version of `mixmgfa` that supports ",
-        "`invar_loadings`.",
+        "The installed version of `mixmgfa::mixmgfa()` does not support `invar_loadings`. ",
+        "Use `invar_loadings = NULL`, or install a version that supports this argument.",
         call. = FALSE
       )
     }
 
-    mixmgfa_args$invar_loadings <- invar_loadings
+    mixmgfa_args$invar_loadings <- invar_loadings # add the argument when supported
   }
 
   output1 <- do.call(mixmgfa::mixmgfa, mixmgfa_args)
 
-  # MixMG-CFA: rescaling factors using marker variables
-  output2 <- .scale_rotate_mixmgfa(output1, N_gs = N_gs, cluster.spec = MM.cluster.spec,
-                                nsclust = MM.nclus, design = MM.design, rescale=1, markers = markers,
-                                rotation=0,targetT=0,targetW=0)
+  # rescale factors using marker variables
+  output2 <- mixmgfa:::ScaleRotateMixmgfa(output1, N_gs = N_gs, cluster.spec = MM.cluster.spec,
+                                nsclust = MM.nclus, design = MM.design, rescale = 1, markers = markers,
+                                rotation = 0, targetT = 0, targetW = 0)
+  mmgfa_solution <- output2$MMGFAsolutions[[paste0(MM.nclus, ".clusters")]]
 
-  # the list of cluster names from MixMG-CFA solutions
-  cluster_names <- grep("^\\d+\\.clusters$", names(output2[["MMGFAsolutions"]]), value = TRUE)
-  uniquevar_key <- grep("uniquevariances$", names(output2[["MMGFAsolutions"]][[cluster_names]]), value = TRUE)
-  # relevant parameters
-  factor_cov_list<- output2[["MMGFAsolutions"]][[cluster_names]][["group.and.clusterspecific.factorcovariances"]]
-  cluster_memb_list <- output2[["MMGFAsolutions"]][[cluster_names]][["clustermemberships"]]
-  lambda_list <- output2[["MMGFAsolutions"]][[cluster_names]][["clusterspecific.loadings"]]
-  theta_list <- output2[["MMGFAsolutions"]][[cluster_names]][[uniquevar_key]] #group or cluster
+  # unique variances can be either group-specific or cluster-specific
+  uniquevar_key <- grep("uniquevariances$", names(mmgfa_solution), value = TRUE)
+  # extract the parameters needed for Step 2
+  factor_cov_list <-  mmgfa_solution$group.and.clusterspecific.factorcovariances
+  cluster_memb <- mmgfa_solution$clustermemberships
+  lambda_list <- mmgfa_solution$clusterspecific.loadings
+  theta_list <- mmgfa_solution[[uniquevar_key]]
 
-  # weighted sum approach to get group- and cluster-specific fcov
-  weighted_sum_mg <- array(data = NA, dim = c(nfactors, nfactors, ngroups))
+  # compute the group-specific fcov using weighted sum approach
+  weighted_sum_mg <- array(data = NA_real_, dim = c(nfactors, nfactors, ngroups))
 
-  for (j in 1:ngroups) {
-      # multiply each cluster-specific matrix by its corresponding cluster membership and sum the results
-      weighted_sum_mg[,,j] <- Reduce(`+`, Map(`*`, factor_cov_list[j, ], cluster_memb_list[j, ]))
+  for (g in seq_len(ngroups)) {
+      # match group- and cluster-specific fcov matrices and probabilities by MM-cluster,
+      # multiply and sum across MM-clusters
+      weighted_sum_mg[, , g] <- Reduce(`+`, Map(`*`, factor_cov_list[g, ], cluster_memb[g, ]))
     }
   cov_eta <- weighted_sum_mg
   dimnames(cov_eta)[[1]] <- dimnames(cov_eta)[[2]] <- lat_var
 
-  end_time_step1 <- Sys.time()  # End time for Step 1
+  end_time_step1 <- Sys.time()
   step1_time <- difftime(end_time_step1, start_time_step1, units = "mins")
 
   return(list(cov_eta = cov_eta,
               ngroups = ngroups,
               N_gs = N_gs,
               S_unbiased   = S_unbiased,
-              vars         = vars, #var names
-              lat_var      = lat_var, #latent variable names
+              vars         = vars,
+              lat_var      = lat_var,
               mmgfa_output = list(output1 = output1,
                                   output2 = output2,
-                                  cluster_memb = cluster_memb_list,
-                                  factor_cov = factor_cov_list, #gk
-                                  lambda_gs = lambda_list, #gk
-                                  theta_gs = theta_list), #g
+                                  cluster_memb = cluster_memb,
+                                  factor_cov = factor_cov_list,
+                                  lambda = lambda_list,
+                                  theta = theta_list),
               step1_time = step1_time))
 
 }

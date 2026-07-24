@@ -11,14 +11,12 @@ MixMix_Step2(
   nfree,
   seed = NULL,
   userStart = NULL,
-  single = FALSE,
   max_it = 10000L,
   nstarts = 50L,
   printing = FALSE,
   partition = "hard",
   Endo2Cov = TRUE,
-  allG = TRUE,
-  fit = "factors"
+  allG = TRUE
 )
 }
 \arguments{
@@ -26,58 +24,52 @@ MixMix_Step2(
 
 \item{step2model}{A lavaan model syntax string specifying the structural relations among latent variables.}
 
-\item{nclus}{Integer scalar indicating the number of structural relations clusters.}
+\item{nclus}{Integer scalar indicating the number of SR-clusters.}
 
-\item{nfree}{Integer scalar indicating the number of free non-marker loadings in the Step 1 measurement model.
-Used for observed-data information-criterion calculations.}
+\item{nfree}{Integer scalar indicating the number of free non-marker loadings in the Step 1 measurement model. This is used to calculate the number of parameters involved.}
 
-\item{seed}{Optional integer seed for random starts.}
+\item{seed}{Optional integer seed before generating the random starts.}
 
 \item{userStart}{Optional user-defined cluster membership matrix (dimensions: number of groups × number of clusters) with binary values
-(1 or 0; 1 indicates cluster membership). This can be used to initialize the EM algorithm when the user has prior information about cluster memberships.
-There must be only one 1 for each row. Skips random starts.}
-
-\item{single}{Logical. If \code{FALSE}, Step 2 uses \code{s1out$cov_eta}. If \code{TRUE},
-Step 2 uses \code{s1out$cov_eta_fs}. The single-indicator option is experimental.}
+(1 or 0; 1 indicates cluster membership). This can be used to initialize the EM algorithm when the user has prior information
+about cluster memberships. There must be only one \code{1} for each row. Skips random starts.}
 
 \item{max_it}{Maximum number of EM iterations per random start.}
 
-\item{nstarts}{Number of random starts.}
+\item{nstarts}{Number of random starts (to avoid local maxima).}
 
-\item{printing}{Logical; whether to print iteration progress.}
+\item{printing}{Logical indicating whether to print iteration progress.}
 
-\item{partition}{Character string specifying the initial partition type.
-Currently \code{"hard"} and \code{"soft"} are supported.}
+\item{partition}{Character string specifying the initial partition type. Currently \code{"hard"} and \code{"soft"} are supported.}
 
-\item{Endo2Cov}{Logical; whether to allow covariance between endogenous 2 variables.}
+\item{Endo2Cov}{Logical indicating whether to allow covariances between endogenous 2 variables.}
 
-\item{allG}{Logical; whether the endogenous covariances are group-specific (\code{TRUE}) or cluster-specific (\code{FALSE}).}
-
-\item{fit}{Character string indicating the likelihood target for model estimation. Currently \code{"factors"} is the supported option.}
+\item{allG}{Logical indicating whether the endogenous covariances are group-specific (\code{TRUE}) or cluster-specific (\code{FALSE}).}
 }
 \value{
 A named list containing:
 \describe{
-\item{posteriors}{Posterior cluster membership probabilities.}
-\item{final_fit}{Final lavaan fit object (containing all group-cluster combinations).}
-\item{param}{Estimated group- and cluster-specific residual covariance matrices and cluster-specific regression matrices.}
-\item{logLik}{Log-likelihood values from the final solution and random starts.}
+\item{posteriors}{A matrix of posterior SR-cluster membership probabilities.}
+\item{final_fit}{The final lavaan fit object (containing all group-cluster combinations).}
+\item{param}{A list containing the estimated group- and cluster-specific residual covariance matrices and cluster-specific regression matrices.}
+\item{logLik}{A list of log-likelihood values from the final solution and random starts.}
 \item{model_sel}{Model selection indices including BIC, AIC, and AIC3.}
-\item{NrPar}{Number of estimated parameters used for model selection calculations.}
-\item{step2_time}{Elapsed Step 2 computation time in minutes.}
+\item{NrPar}{The number of parameters used for model selection.}
+\item{step2_time}{Step 2 computation time in minutes.}
 }
 }
 \description{
-Fit the second step of the double-mixture multigroup SEM method.
-Given the group-specific factor covariance matrices obtained from
-\code{\link[=MixMix_Step1]{MixMix_Step1()}}, groups are clustered according to their structural
-relations among latent variables.
+Fit the second step of the double-mixture multigroup SEM (2MixMG-SEM) method.
+Given the group-specific factor covariance matrices obtained from \code{\link[=MixMix_Step1]{MixMix_Step1()}},
+groups are clustered based on their structural relations among latent variables.
+An EM algorithm is used to optimize this log-likelihood function. In the E-step, the
+algorithm estimates the expected values of the cluster memberships of the groups given
+the current parameter estimates. In the M-step, the algorithm maximizes the unknown
+parameters given the expected cluster memberships from the E-step by calling lavaan.
 }
 \details{
-This function implements an EM algorithm for structural relations clustering
-using Step 1 factor covariance matrices as input. The implementation
-is adapted from Andres Felipe Perez Alonso's mixture multigroup SEM code
-(\code{mmgsem}) and extended for the two-step double-mixture multigroup SEM workflow.
+The implementation is adapted from Andres Felipe Perez Alonso's Mixture multigroup SEM code \code{mmgsem} and extended for the step-wise 2MixMG-SEM method.
+Model-selection indices are calculated using both the factor-level likelihood from Step 2 and an observed data likelihood that combines the MM-cluster and SR-cluster solutions.
 }
 \examples{
 \dontrun{

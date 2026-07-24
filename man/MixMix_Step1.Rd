@@ -2,17 +2,12 @@
 % Please edit documentation in R/mix2mgsem_s1.R
 \name{MixMix_Step1}
 \alias{MixMix_Step1}
-\title{Run Step 1: measurement model clustering
-Fit the first step of the double-mixture multigroup SEM method.
-In the first step, groups are clustered based on (a subset of) measurement model
-parameters using mixture multigroup factor analysis via \code{mixmgfa}.
-The relevant parameters are extracted to obtain group-specific latent factor covariance matrices
-that can be passed to \code{\link[=MixMix_Step2]{MixMix_Step2()}} for the second step structural relations clustering.}
+\title{Run Step 1: measurement model clustering}
 \usage{
 MixMix_Step1(
   data,
-  step1model,
   group = "group",
+  step1model,
   MM.cluster.spec = c("loadings"),
   MM.nclus,
   MM.maxiter = 10000,
@@ -24,25 +19,28 @@ MixMix_Step1(
 )
 }
 \arguments{
-\item{data}{A data frame containing the observed item variables and a group identifier.}
+\item{data}{A data frame containing the observed variables and a grouping variable.}
+
+\item{group}{A character string giving the name of the grouping variable. Defaults to \code{"group"}.}
 
 \item{step1model}{A lavaan model syntax string specifying the measurement model.}
 
-\item{group}{Character string giving the name of the grouping variable in \code{data}. Defaults to \code{"group"}.}
+\item{MM.cluster.spec}{A character vector passed to \code{mixmgfa::mixmgfa()} specifying which measurement parameters are cluster-specific.
+Defaults to \code{"loadings"}. Use \code{c("loadings", "residuals")} to also make the unique variances cluster-specific.}
 
-\item{MM.cluster.spec}{Character vector passed to \code{mixmgfa::mixmgfa()}; specifies which measurement parameters are cluster-specific.}
+\item{MM.nclus}{Integer scalar indicating the number of measurement model clusters.}
 
-\item{MM.nclus}{Integer scalar indicating the number of measurement clusters.}
+\item{MM.maxiter}{Maximum number of iterations passed to \code{mixmgfa::mixmgfa()}. Increase in case of non-convergence.}
 
-\item{MM.maxiter}{Maximum number of iterations passed to \code{mixmgfa::mixmgfa()}.}
+\item{MM.nruns}{Number of random starts passed to \code{mixmgfa::mixmgfa()} (to avoid local maxima).}
 
-\item{MM.nruns}{Number of random starts passed to \code{mixmgfa::mixmgfa()}.}
+\item{MM.design}{A zero-one loading matrix passed to \code{mixmgfa::mixmgfa()}. Rows correspond to observed variables and columns to factors;
+\code{0} indicates a zero loading and \code{1} indicates a non-zero loading.}
 
-\item{MM.design}{Design object passed to \code{mixmgfa::mixmgfa()}. Loading matrix (with ncol = nfactors) indicating position of zero loadings with '0' and non-zero loadings with '1'.}
+\item{invar_loadings}{Optional invariant loading specification passed to \code{mixmgfa::mixmgfa()}. Defaults to \code{NULL}.}
 
-\item{invar_loadings}{Invariant loadings specification passed to \code{mixmgfa::mixmgfa()}.}
-
-\item{markers}{Marker variables specification passed to \code{mixmgfa::ScaleRotateMixmgfa_pinvar()}.}
+\item{markers}{A zero-one matrix specifying the marker variable for each factor. Rows correspond to observed variables and columns to
+factors. An entry of \code{1} identifies the marker variable; all other entries should be \code{0}.}
 
 \item{seed}{Integer seed used before fitting the measurement model.}
 }
@@ -56,16 +54,16 @@ A named list containing:
 \item{vars}{Observed variable names.}
 \item{lat_var}{Latent variable names.}
 \item{mmgfa_output}{Selected outputs from the Step 1 \code{mixmgfa} fit.}
-\item{step1_time}{Elapsed Step 1 computation time in minutes.}
+\item{step1_time}{Step 1 computation time in minutes.}
 }
 }
 \description{
-Run Step 1: measurement model clustering
-Fit the first step of the double-mixture multigroup SEM method.
-In the first step, groups are clustered based on (a subset of) measurement model
-parameters using mixture multigroup factor analysis via \code{mixmgfa}.
-The relevant parameters are extracted to obtain group-specific latent factor covariance matrices
-that can be passed to \code{\link[=MixMix_Step2]{MixMix_Step2()}} for the second step structural relations clustering.
+Fit the first step of the double-mixture multigroup SEM (2MixMG-SEM) method.
+In this step, groups are clustered based on (a subset of) measurement model
+parameters using mixture multigroup confirmatory factor analysis via \code{mixmgfa}.
+The resulting group- and cluster-specific factor covariance matrices are weighted
+by the posterior cluster membership probabilities to obtain one factor covariance matrix
+for each group. These matrices are used as input to \code{\link[=MixMix_Step2]{MixMix_Step2()}}.
 }
 \examples{
 \dontrun{
@@ -77,13 +75,13 @@ step1_model <- '
 '
 
 step1_out <- MixMix_Step1(
-  data = dat,
-  step1model = step1_model,
+  data = data,
   group = "country",
-  MM.cluster.spec=c("loadings"),
+  step1model = step1_model,
+  MM.cluster.spec = c("loadings"),
   MM.nclus = 2,
   MM.design = design,
-  invar_loadings = invar_loadings,
+  invar_loadings = NULL,
   markers = markers
 )
 }

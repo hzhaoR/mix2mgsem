@@ -1,35 +1,15 @@
-# Step 1 validation
+# Step 1 evaluation
+# get the factor loadings paths
+get_loading_paths <- function(step1model, obs_vars, markers = NULL) {
+  par_table <- lavaan::lavaanify(step1model)
 
-# factor loadings
-get_loading_paths <- function(step1model,
-                              markers = NULL,
-                              include_marker_loadings = FALSE) {
-  parameter_table <- lavaan::lavaanify(step1model)
+  loading_paths <- par_table[par_table$op == "=~", c("lhs", "rhs")]
 
-  loading_paths <- parameter_table[
-    parameter_table$op == "=~",
-    c("lhs", "rhs")
-  ]
-
-  loading_paths$lhs <- as.character(loading_paths$lhs)
-  loading_paths$rhs <- as.character(loading_paths$rhs)
-
-  loading_paths <- unique(loading_paths)
-
-  if (!include_marker_loadings && !is.null(markers)) {
-    markers <- as.character(unlist(markers))
-    loading_paths <- loading_paths[
-      !loading_paths$rhs %in% markers,
-      ,
-      drop = FALSE
-    ]
+  # Marker loadings are fixed to 1 during rescaling and are therefore excluded from the evaluation of estimated loadings
+  if (!is.null(markers)) {
+    marker_vars <- obs_vars[rowSums(markers == 1) > 0]
+    loading_paths <- loading_paths[!loading_paths$rhs %in% marker_vars, , drop = FALSE]
   }
-
-  loading_paths$path <- paste(
-    loading_paths$lhs,
-    "=~",
-    loading_paths$rhs
-  )
 
   rownames(loading_paths) <- NULL
 
@@ -37,14 +17,12 @@ get_loading_paths <- function(step1model,
 }
 
 # extract factor loadings
-extract_loading_values <- function(lambda_matrix,
-                                   paths,
-                                   observed_vars,
-                                   latent_vars) {
+extract_loading_values <- function(lambda_matrix, paths, obs_vars, lat_vars) {
   lambda_matrix <- as.matrix(lambda_matrix)
 
-  rownames(lambda_matrix) <- observed_vars
-  colnames(lambda_matrix) <- latent_vars
+  # loadings are selected using observed and latent variable names
+  rownames(lambda_matrix) <- obs_vars
+  colnames(lambda_matrix) <- lat_vars
 
   values <- numeric(nrow(paths))
 
@@ -55,173 +33,77 @@ extract_loading_values <- function(lambda_matrix,
     values[i] <- lambda_matrix[indicator, latent]
   }
 
-  names(values) <- paths$path
-
   values
 }
 
-# step 1 evaluation
-evaluate_step1_validation <- function(posteriors,
-                                      lambda_ks,
-                                      cov_eta,
-                                      true_cluster,
-                                      true_lambda,
-                                      true_cov_eta,
-                                      step1model,
-                                      observed_vars,
-                                      latent_vars,
-                                      markers = NULL,
-                                      include_marker_loadings = FALSE,
-                                      nclus = ncol(posteriors)) {
+# Step 1 evaluation: recovery of MM-clusters, factor loadings, and factor covariance matrices
+evaluate_step1_validation <- function(posteriors, lambda_ks, cov_eta, true_cluster,
+                                      true_lambda, true_cov_eta, step1model,
+                                      obs_vars, lat_vars, markers = NULL) {
+  nclus <- ncol(posteriors)
 
-  # ---------------------------------------------------------------------------
   # 1. MM-cluster recovery
-  # ---------------------------------------------------------------------------
+  # Cluster labels are arbitrary, so each possible relabeling is compared with the true cluster memberships
+  estimated_cluster <- apply(posteriors, 1, which.max)
+  permutations <- all_permutations(seq_len(nclus))
+  misclass <- numeric(length(permutations))
 
-  estimated_cluster <- max.col(posteriors, ties.method = "first")
-
-  perms <- all_permutations(seq_len(nclus))
-
-  misclass <- numeric(length(perms))
-  relabeled_list <- vector("list", length(perms))
-
-  for (i in seq_along(perms)) {
-    relabeled_list[[i]] <- perms[[i]][estimated_cluster]
-    misclass[i] <- mean(relabeled_list[[i]] != true_cluster)
+  for (i in seq_along(permutations)) {
+    relabeled_cluster <- permutations[[i]][estimated_cluster]
+    misclass[i] <- mean(relabeled_cluster != true_cluster)
   }
 
   best_i <- which.min(misclass)
+  best_mapping <- permutations[[best_i]]
 
-  best_mapping <- stats::setNames(
-    perms[[best_i]],
-    seq_len(nclus)
-  )
-
-  relabeled_cluster <- relabeled_list[[best_i]]
-
-  # ---------------------------------------------------------------------------
   # 2. Loading recovery
-  # ---------------------------------------------------------------------------
+  # The estimated clusters are first matched with the corresponding true clusters before their loadings are compared
+  paths <- get_loading_paths(step1model = step1model, obs_vars = obs_vars, markers = markers)
 
-  paths <- get_loading_paths(
-    step1model = step1model,
-    markers = markers,
-    include_marker_loadings = include_marker_loadings
-  )
-
-  loading_tables <- list()
+  loading_difference <- numeric(0)
 
   for (est_k in seq_len(nclus)) {
-    true_k <- as.integer(unname(best_mapping[as.character(est_k)]))
+    true_k <- best_mapping[est_k]
 
     estimated_values <- extract_loading_values(
       lambda_matrix = lambda_ks[[est_k]],
       paths = paths,
-      observed_vars = observed_vars,
-      latent_vars = latent_vars
+      obs_vars = obs_vars,
+      lat_vars = lat_vars
     )
 
     true_values <- extract_loading_values(
       lambda_matrix = true_lambda[, , true_k],
       paths = paths,
-      observed_vars = observed_vars,
-      latent_vars = latent_vars
+      obs_vars = obs_vars,
+      lat_vars = lat_vars
     )
 
-    difference <- estimated_values - true_values
-
-    loading_tables[[est_k]] <- data.frame(
-      estimated_cluster = est_k,
-      matched_true_cluster = true_k,
-      path = names(estimated_values),
-      estimated = as.numeric(estimated_values),
-      truth = as.numeric(true_values),
-      difference = as.numeric(difference),
-      stringsAsFactors = FALSE
-    )
+    loading_difference <- c(loading_difference, estimated_values - true_values)
   }
 
-  loading_table <- do.call(rbind, loading_tables)
-  rownames(loading_table) <- NULL
-
-  # ---------------------------------------------------------------------------
   # 3. Factor covariance recovery
-  # ---------------------------------------------------------------------------
-
-  ngroups <- dim(cov_eta)[3]
-
+  # Only the lower triangle is used because the covariance matrices are symmetric
   lower_index <- lower.tri(cov_eta[, , 1], diag = TRUE)
-  diag_index <- diag(nrow(cov_eta[, , 1])) == 1
-  offdiag_index <- lower.tri(cov_eta[, , 1], diag = FALSE)
+  cov_difference <- numeric(0)
 
-  covariance_tables <- list()
-
-  for (g in seq_len(ngroups)) {
-    estimated_cov <- cov_eta[, , g]
-    true_cov <- true_cov_eta[, , g]
-
-    rownames(estimated_cov) <- latent_vars
-    colnames(estimated_cov) <- latent_vars
-    rownames(true_cov) <- latent_vars
-    colnames(true_cov) <- latent_vars
-
-    covariance_tables[[g]] <- data.frame(
-      group = g,
-      type = ifelse(diag_index[lower_index], "variance", "covariance"),
-      path = paste(
-        rownames(estimated_cov)[row(estimated_cov)[lower_index]],
-        "~~",
-        colnames(estimated_cov)[col(estimated_cov)[lower_index]]
-      ),
-      estimated = as.numeric(estimated_cov[lower_index]),
-      truth = as.numeric(true_cov[lower_index]),
-      difference = as.numeric(estimated_cov[lower_index] - true_cov[lower_index]),
-      stringsAsFactors = FALSE
-    )
+  for (g in seq_len(dim(cov_eta)[3])) {
+    estimated_values <- cov_eta[, , g][lower_index]
+    true_values <- true_cov_eta[, , g][lower_index]
+    cov_difference <- c(cov_difference, estimated_values - true_values)
   }
-
-  covariance_table <- do.call(rbind, covariance_tables)
-  rownames(covariance_table) <- NULL
-
-  variance_table <- covariance_table[covariance_table$type == "variance", ]
-  factor_cov_table <- covariance_table[covariance_table$type == "covariance", ]
-
-  # ---------------------------------------------------------------------------
-  # Return summaries
-  # ---------------------------------------------------------------------------
 
   list(
     clustering = list(
-      estimated_cluster = estimated_cluster,
-      relabeled_cluster = relabeled_cluster,
-      true_cluster = true_cluster,
-      mapping = best_mapping,
       misclassification_error = misclass[best_i],
-      correct_clustering = misclass[best_i] == 0,
-      mean_uncertainty = mean(1 - apply(posteriors, 1, max))
-    ),
+      mean_uncertainty = mean(1 - apply(posteriors, 1, max))),
 
     loading = list(
-      paths = paths,
-      table = loading_table,
-      bias = mean(loading_table$difference),
-      rmse = sqrt(mean(loading_table$difference^2)),
-      max_abs_error = max(abs(loading_table$difference))
-    ),
+      rmse = sqrt(mean(loading_difference^2)),
+      max_abs_error = max(abs(loading_difference))),
 
     factor_covariance = list(
-      table = covariance_table,
-      bias = mean(covariance_table$difference),
-      rmse = sqrt(mean(covariance_table$difference^2)),
-      max_abs_error = max(abs(covariance_table$difference)),
-
-      variance_bias = mean(variance_table$difference),
-      variance_rmse = sqrt(mean(variance_table$difference^2)),
-      variance_max_abs_error = max(abs(variance_table$difference)),
-
-      covariance_bias = mean(factor_cov_table$difference),
-      covariance_rmse = sqrt(mean(factor_cov_table$difference^2)),
-      covariance_max_abs_error = max(abs(factor_cov_table$difference))
-    )
+      rmse = sqrt(mean(cov_difference^2)),
+      max_abs_error = max(abs(cov_difference)))
   )
 }
