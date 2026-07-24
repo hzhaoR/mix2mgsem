@@ -4,6 +4,7 @@
 #'
 #' @inheritParams MixMix_Step2
 #' @param nclus Integer vector containing at least two candidate numbers of SR-clusters.
+#' @param ... Additional arguments passed to [MixMix_Step2()].
 #'
 #' @return An object of class `mix2mgsem_step2_selection` containing:
 #' \describe{
